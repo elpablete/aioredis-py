@@ -2694,6 +2694,46 @@ class Redis:
             pieces.extend(pair)
         return self.execute_command("XADD", name, *pieces)
 
+    def xautoclaim(
+        self,
+        name: str,
+        groupname: str,
+        consumername: str,
+        min_idle_time: int,
+        start: str = "0-0",
+        count: int = None,
+        justid: bool = False,
+    ) -> Awaitable:
+        """
+        Transfers ownership of pending stream entries that match the specified criteria.
+        """
+
+        if not isinstance(min_idle_time, int) or min_idle_time < 0:
+            raise ValueError(
+                "XAUTOCLAIM min_idle_time must be a non negative " "integer"
+            )
+
+        kwargs = {}
+        pieces = [name, groupname, consumername, str(min_idle_time)]
+
+        if start is not None:
+            pieces.append(str(start))
+
+        if count is not None:
+            if not isinstance(count, int) or count < 1:
+                raise ValueError("XAUTOCLAIM count must be a positive integer")
+            pieces.append(b"COUNT")
+            pieces.append(str(count))
+
+        if justid:
+            if not isinstance(justid, bool):
+                raise ValueError("XAUTOCLAIM justid must be a boolean")
+            pieces.append(b"JUSTID")
+            kwargs["parse_justid"] = True
+
+        return self.execute_command("XAUTOCLAIM", *pieces, **kwargs)
+
+
     def xclaim(
         self,
         name: KeyT,
