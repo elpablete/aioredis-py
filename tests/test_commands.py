@@ -2402,6 +2402,39 @@ class TestRedisCommands:
         # with maxlen, the list evicts the first message
         await r.xadd(stream, {"foo": "bar"}, maxlen=2, approximate=False)
         assert await r.xlen(stream) == 2
+        
+
+    @skip_if_server_version_lt("6.2.0")
+    async def test_xautoclaim(self, r: aioredis.Redis):
+        stream = "stream"
+        group = "group"
+        consumer1 = "consumer1"
+        consumer2 = "consumer2"
+
+        message_id = await r.xadd(stream, {"pill": "red"})
+        message = await get_stream_message(r, stream, message_id)
+        await r.xgroup_create(stream, group, 0)
+
+        # read the group as consumer1 to initially claim the messages
+        await r.xreadgroup(group, consumer1, streams={stream: ">"})
+
+        pending_list = await r.xpending(stream, group)
+
+        info_consumers = await r.xinfo_consumers(stream, group)
+
+        claim_response = await r.xautoclaim(stream, group, consumer2, 0)
+
+        info_consumers_claim = await r.xinfo_consumers(stream, group)
+
+        #assert claim_response[1][0][0] == message_id
+
+        pending_list_claim = await r.xpending(stream, group)
+
+        message_data = dict(claim_response[-1])
+        for message_id in message_data:
+            await r.xack(stream, group, message_id)
+
+        pending_list = await r.xpending(stream, group)
 
     @skip_if_server_version_lt("5.0.0")
     async def test_xclaim(self, r: aioredis.Redis):
