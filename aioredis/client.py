@@ -2696,12 +2696,12 @@ class Redis:
 
     def xautoclaim(
         self,
-        name: str,
-        groupname: str,
-        consumername: str,
+        name: KeyT,
+        groupname: GroupT,
+        consumername: ConsumerT,
         min_idle_time: int,
-        start: str = "0-0",
-        count: int = None,
+        start: StreamIdT = "0-0",
+        count: Optional[int] = None,
         justid: bool = False,
     ) -> Awaitable:
         """
@@ -2712,18 +2712,15 @@ class Redis:
             raise ValueError(
                 "XAUTOCLAIM min_idle_time must be a non negative " "integer"
             )
+        
 
         kwargs = {}
-        pieces = [name, groupname, consumername, str(min_idle_time)]
-
-        if start is not None:
-            pieces.append(str(start))
+        pieces: List[EncodableT] = [name, groupname, consumername, str(min_idle_time), str(start)]
 
         if count is not None:
             if not isinstance(count, int) or count < 1:
                 raise ValueError("XAUTOCLAIM count must be a positive integer")
-            pieces.append(b"COUNT")
-            pieces.append(str(count))
+            pieces.extend((b"COUNT", str(count)))
 
         if justid:
             if not isinstance(justid, bool):
